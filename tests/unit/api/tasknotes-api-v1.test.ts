@@ -7,6 +7,7 @@ import {
 	type TaskNotesTaskPatch,
 } from "../../../src/api/TaskNotesAPI";
 import type TaskNotesPlugin from "../../../src/main";
+import { FilterService } from "../../../src/services/FilterService";
 import type {
 	FilterQuery,
 	PomodoroHistoryStats,
@@ -913,7 +914,7 @@ describe("TaskNotesApiV1", () => {
 		);
 	});
 
-	it("supports exact runtime path inequality without excluding similar paths", async () => {
+	it("maps runtime path inequality to the canonical filter condition", async () => {
 		const triggerTask = createTask({ path: "Tasks/workflow.md" });
 		const similarTask = createTask({ path: "Tasks/workflow-follow-up.md" });
 		const { plugin, filterService } = createPluginContext([triggerTask, similarTask]);
@@ -950,6 +951,52 @@ describe("TaskNotesApiV1", () => {
 				],
 			})
 		);
+	});
+
+	it("excludes only the identical path during real filter execution", async () => {
+		const triggerTask = createTask({ path: "Tasks/workflow.md" });
+		const similarTask = createTask({ path: "Tasks/workflow-follow-up.md" });
+		const tasksByPath = new Map([
+			[triggerTask.path, triggerTask],
+			[similarTask.path, similarTask],
+		]);
+		const filterService = new FilterService(
+			{
+				getAllTaskPaths: jest.fn(() => new Set(tasksByPath.keys())),
+				getCachedTaskInfo: jest.fn(async (path: string) => tasksByPath.get(path) ?? null),
+			} as never,
+			{
+				getCompletedStatuses: jest.fn(() => ["done"]),
+				isCompletedStatus: jest.fn(() => false),
+				getStatusOrder: jest.fn(() => 0),
+			} as never,
+			{
+				getPriorityWeight: jest.fn(() => 0),
+				getPriorityOrder: jest.fn(() => 0),
+			} as never,
+			{ settings: { userFields: [] } }
+		);
+		const query: FilterQuery = {
+			type: "group",
+			id: "exclude-trigger",
+			conjunction: "and",
+			children: [
+				{
+					type: "condition",
+					id: "path-is-not-trigger",
+					property: "path",
+					operator: "is-not",
+					value: triggerTask.path,
+				},
+			],
+			groupKey: "none",
+			sortKey: "title",
+			sortDirection: "asc",
+		};
+
+		const groups = await filterService.getGroupedTasks(query);
+
+		expect(Array.from(groups.values()).flat().map((task) => task.path)).toEqual([similarTask.path]);
 	});
 
 	it("exposes query, stats, time summary, task time data, and health helpers", async () => {

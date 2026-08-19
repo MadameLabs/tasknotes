@@ -18,6 +18,7 @@ import type {
 	TimeEntry,
 } from "../../../src/types";
 import { EVENT_POMODORO_START, EVENT_TASK_DELETED, EVENT_TASK_UPDATED } from "../../../src/types";
+import { FilterUtils } from "../../../src/utils/FilterUtils";
 
 type Listener = (payload: unknown) => void;
 
@@ -907,6 +908,45 @@ describe("TaskNotesApiV1", () => {
 						operator: "contains",
 						value: "work",
 					}),
+				],
+			})
+		);
+	});
+
+	it("supports exact runtime path inequality without excluding similar paths", async () => {
+		const triggerTask = createTask({ path: "Tasks/workflow.md" });
+		const similarTask = createTask({ path: "Tasks/workflow-follow-up.md" });
+		const { plugin, filterService } = createPluginContext([triggerTask, similarTask]);
+		const api = new TaskNotesAPI(plugin);
+		const query = { where: { field: "file.path", op: "ne", value: triggerTask.path } };
+
+		filterService.getGroupedTasks.mockResolvedValueOnce(new Map([["default", [similarTask]]]));
+
+		expect(api.catalog.filterProperties()).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "file.path",
+					supportedOperators: expect.arrayContaining(["eq", "ne"]),
+				}),
+			])
+		);
+		expect(api.query.validate(query)).toEqual(expect.objectContaining({ valid: true }));
+		expect(
+			FilterUtils.isFilterNodeComplete({
+				type: "condition",
+				id: "exclude-trigger",
+				property: "path",
+				operator: "is-not",
+				value: triggerTask.path,
+			})
+		).toBe(true);
+		await expect(api.query.tasks(query)).resolves.toEqual(
+			expect.objectContaining({ tasks: [expect.objectContaining({ path: similarTask.path })] })
+		);
+		expect(filterService.getGroupedTasks).toHaveBeenCalledWith(
+			expect.objectContaining({
+				children: [
+					expect.objectContaining({ property: "path", operator: "is-not", value: triggerTask.path }),
 				],
 			})
 		);

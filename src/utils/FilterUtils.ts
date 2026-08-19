@@ -217,7 +217,7 @@ export class FilterUtils {
 
 			// Text properties
 			title: ["is", "is-not", "contains", "does-not-contain", "is-empty", "is-not-empty"],
-			path: ["contains", "does-not-contain", "is-empty", "is-not-empty"],
+			path: ["is", "is-not", "contains", "does-not-contain", "is-empty", "is-not-empty"],
 
 			// Select properties
 			status: ["is", "is-not", "is-empty", "is-not-empty"],

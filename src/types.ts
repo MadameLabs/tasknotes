@@ -194,7 +194,7 @@ export const FILTER_PROPERTIES: PropertyDefinition[] = [
 		id: "path",
 		label: "Path",
 		category: "select",
-		supportedOperators: ["contains", "does-not-contain", "is-empty", "is-not-empty"],
+		supportedOperators: ["is", "is-not", "contains", "does-not-contain", "is-empty", "is-not-empty"],
 		valueInputType: "select",
 	},
 

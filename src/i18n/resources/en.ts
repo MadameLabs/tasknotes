@@ -614,6 +614,11 @@ export const en: TranslationTree = {
 					name: "Pomodoro notifications",
 					description: "Show notifications when Pomodoro sessions end",
 				},
+				breakAlert: {
+					name: "Demand attention on breaks",
+					description:
+						"When a break starts, bring the Obsidian window to the front, flash it in the taskbar and pulse a full-screen overlay",
+				},
 				statusBar: {
 					name: "Show Pomodoro in status bar",
 					description: "Display the active Pomodoro countdown in Obsidian's status bar",

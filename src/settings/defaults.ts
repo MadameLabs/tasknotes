@@ -280,6 +280,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	pomodoroAutoStartBreaks: true,
 	pomodoroAutoStartWork: false,
 	pomodoroNotifications: true,
+	pomodoroBreakAlert: true,
 	pomodoroSoundEnabled: true,
 	pomodoroSoundVolume: 50,
 	pomodoroStorageLocation: "plugin",

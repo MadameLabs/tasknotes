@@ -21,6 +21,7 @@ import {
 } from "../types";
 import type { InterpolationValues, TranslationKey } from "../i18n";
 import { publishUserNotice } from "../core/userNotices";
+
 import { processVaultFrontMatter } from "./VaultMutationService";
 import {
 	getCurrentTimestamp,
@@ -49,6 +50,9 @@ import {
 import { isTaskInstanceCompleted } from "../utils/taskInstanceStatus";
 import { createTaskNotesLogger } from "../utils/tasknotesLogger";
 
+// Quanto tempo o aviso de pausa fica na tela e a janela fica sobre as outras.
+const BREAK_ALERT_DURATION_MS = 12000;
+
 const tasknotesLogger = createTaskNotesLogger({ tag: "Services/PomodoroService" });
 
 type DailyNoteMoment = Parameters<typeof getDailyNote>[0];
@@ -70,6 +74,8 @@ export class PomodoroService {
 	private ticker: PomodoroTicker | null = null;
 	private state: PomodoroState;
 	private activeAudioContexts: Set<AudioContext> = new Set();
+	private breakOverlay?: HTMLElement;
+	private breakOverlayDismiss?: () => void;
 	private cleanupTimeouts: Set<number> = new Set();
 	private webhookNotifier?: IWebhookNotifier;
 	private lastSelectedTaskPath?: string;
@@ -949,6 +955,11 @@ export class PomodoroService {
 			this.playCompletionSound();
 		}
 
+		// A break only happens if it is noticed: raise the window and pulse an overlay.
+		if (session.type === "work" && this.plugin.settings.pomodoroBreakAlert) {
+			this.demandAttentionForBreak(shouldTakeLongBreak);
+		}
+
 		// Clear current session and set up for next session
 		this.state.currentSession = undefined;
 		this.state.isRunning = false;
@@ -990,6 +1001,104 @@ export class PomodoroService {
 			timeRemaining: this.state.timeRemaining,
 			session: this.state.currentSession,
 		});
+	}
+
+	/**
+	 * Traz a janela do Obsidian para frente e pisca um aviso em tela cheia, para
+	 * que a pausa seja notada mesmo com outro aplicativo em foco. Cada parte e
+	 * best-effort: a janela Electron so existe no desktop, e o Windows pode
+	 * recusar o roubo de foco — quando recusa, o flashFrame pisca na barra de
+	 * tarefas, e o overlay cobre o caso de a janela ja estar visivel.
+	 */
+	private demandAttentionForBreak(isLongBreak: boolean): void {
+		this.raisePluginWindow();
+		this.showBreakOverlay(isLongBreak);
+	}
+
+	private raisePluginWindow(): void {
+		const win = (activeWindow ?? window) as Window & {
+			electronWindow?: {
+				isMinimized?: () => boolean;
+				restore?: () => void;
+				show?: () => void;
+				focus?: () => void;
+				flashFrame?: (flag: boolean) => void;
+				isAlwaysOnTop?: () => boolean;
+				setAlwaysOnTop?: (flag: boolean) => void;
+			};
+		};
+		const electronWindow = win.electronWindow;
+		if (!electronWindow) return;
+
+		try {
+			if (electronWindow.isMinimized?.()) {
+				electronWindow.restore?.();
+			}
+			// O always-on-top temporario vence a politica do Windows que impede
+			// uma janela de fundo de roubar o foco; ele volta ao valor anterior
+			// junto com o fim do overlay.
+			const wasAlwaysOnTop = electronWindow.isAlwaysOnTop?.() ?? false;
+			if (!wasAlwaysOnTop) {
+				electronWindow.setAlwaysOnTop?.(true);
+				const restoreTimeout = window.setTimeout(() => {
+					try {
+						electronWindow.setAlwaysOnTop?.(false);
+					} catch {
+						/* janela ja fechada */
+					}
+				}, BREAK_ALERT_DURATION_MS);
+				this.cleanupTimeouts.add(restoreTimeout);
+			}
+			electronWindow.show?.();
+			electronWindow.focus?.();
+			// Se o foco foi recusado, o icone pisca na barra de tarefas.
+			electronWindow.flashFrame?.(true);
+		} catch (error) {
+			tasknotesLogger.warn("Failed to raise window for Pomodoro break:", {
+				category: "provider",
+				operation: "raise-window-pomodoro-break",
+				error: error,
+			});
+		}
+	}
+
+	private showBreakOverlay(isLongBreak: boolean): void {
+		const doc = (activeDocument ?? document) as Document;
+		this.dismissBreakOverlay();
+
+		const overlay = doc.createElement("div");
+		overlay.addClass("tasknotes-pomodoro-break-alert");
+		const card = overlay.createDiv({ cls: "tasknotes-pomodoro-break-alert__card" });
+		card.createDiv({
+			cls: "tasknotes-pomodoro-break-alert__title",
+			text: isLongBreak ? "💤" : "☕",
+		});
+		card.createDiv({
+			cls: "tasknotes-pomodoro-break-alert__message",
+			text: this.translate(
+				isLongBreak
+					? "services.pomodoro.notices.longBreakStarted"
+					: "services.pomodoro.notices.shortBreakStarted"
+			),
+		});
+
+		const dismiss = () => this.dismissBreakOverlay();
+		overlay.addEventListener("click", dismiss);
+		doc.addEventListener("keydown", dismiss, { once: true });
+		this.breakOverlayDismiss = () => doc.removeEventListener("keydown", dismiss);
+
+		doc.body.appendChild(overlay);
+		this.breakOverlay = overlay;
+
+		const hideTimeout = window.setTimeout(dismiss, BREAK_ALERT_DURATION_MS);
+		this.cleanupTimeouts.add(hideTimeout);
+	}
+
+	private dismissBreakOverlay(): void {
+		this.breakOverlayDismiss?.();
+		this.breakOverlayDismiss = undefined;
+		this.breakOverlay?.remove();
+		this.breakOverlay = undefined;
 	}
 
 	private playCompletionSound() {
@@ -1429,6 +1538,7 @@ export class PomodoroService {
 			}
 		}
 		this.activeAudioContexts.clear();
+		this.dismissBreakOverlay();
 		void this.saveState();
 	}
 

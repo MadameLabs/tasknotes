@@ -124,6 +124,7 @@ export interface TaskNotesSettings {
 	pomodoroAutoStartBreaks: boolean;
 	pomodoroAutoStartWork: boolean;
 	pomodoroNotifications: boolean;
+	pomodoroBreakAlert: boolean; // raise and flash the window when a break starts
 	pomodoroSoundEnabled: boolean;
 	pomodoroSoundVolume: number; // 0-100
 	pomodoroStorageLocation: "plugin" | "daily-notes"; // where to store pomodoro history data

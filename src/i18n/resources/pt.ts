@@ -593,6 +593,11 @@ export const pt: TranslationTree = {
 					name: "Notificações Pomodoro",
 					description: "Mostrar notificações quando as sessões Pomodoro terminarem"
 				},
+				breakAlert: {
+					name: "Exigir atenção nas pausas",
+					description:
+						"Quando a pausa começa, trazer a janela do Obsidian para frente, piscá-la na barra de tarefas e pulsar um aviso em tela cheia"
+				},
 				mobileSidebar: {
 					name: "Barra lateral móvel",
 					description: "Onde abrir o temporizador Pomodoro em dispositivos móveis",

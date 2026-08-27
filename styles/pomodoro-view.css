@@ -856,3 +856,58 @@
 .tasknotes-plugin.pomodoro-view--narrow .pomodoro-view__progress-circle {
     stroke-width: 4;
 }
+
+/* ==========================================================================
+   Pomodoro break alert — aviso em tela cheia quando a pausa comeca
+   ========================================================================== */
+
+.tasknotes-pomodoro-break-alert {
+	position: fixed;
+	inset: 0;
+	z-index: var(--layer-modal, 100);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	animation: tasknotes-pomodoro-break-alert-pulse 1s ease-in-out infinite alternate;
+}
+
+.tasknotes-pomodoro-break-alert__card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--size-4-4, 16px);
+	padding: var(--size-4-8, 32px) var(--size-4-12, 48px);
+	border-radius: var(--radius-l, 12px);
+	background-color: var(--background-primary);
+	box-shadow: var(--shadow-l);
+	text-align: center;
+}
+
+.tasknotes-pomodoro-break-alert__title {
+	font-size: 4em;
+	line-height: 1;
+}
+
+.tasknotes-pomodoro-break-alert__message {
+	font-size: var(--font-ui-large, 1.2em);
+	font-weight: var(--font-semibold, 600);
+	color: var(--text-normal);
+}
+
+@keyframes tasknotes-pomodoro-break-alert-pulse {
+	from {
+		background-color: rgba(0, 0, 0, 0.35);
+	}
+	to {
+		background-color: var(--color-accent);
+	}
+}
+
+/* Respeitar quem desliga animacao no sistema: o aviso aparece, mas nao pisca. */
+@media (prefers-reduced-motion: reduce) {
+	.tasknotes-pomodoro-break-alert {
+		animation: none;
+		background-color: rgba(0, 0, 0, 0.55);
+	}
+}

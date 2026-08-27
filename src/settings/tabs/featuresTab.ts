@@ -495,6 +495,19 @@ export function renderFeaturesTab(
 			group.addSetting(
 				(setting) =>
 					void configureToggleSetting(setting, {
+						name: translate("settings.features.pomodoro.breakAlert.name"),
+						desc: translate("settings.features.pomodoro.breakAlert.description"),
+						getValue: () => plugin.settings.pomodoroBreakAlert,
+						setValue: async (value: boolean) => {
+							plugin.settings.pomodoroBreakAlert = value;
+							save();
+						},
+					})
+			);
+
+			group.addSetting(
+				(setting) =>
+					void configureToggleSetting(setting, {
 						name: translate("settings.features.pomodoro.statusBar.name"),
 						desc: translate("settings.features.pomodoro.statusBar.description"),
 						getValue: () => plugin.settings.showPomodoroInStatusBar,
